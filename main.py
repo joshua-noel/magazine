@@ -5,6 +5,7 @@ from flask import g #DATABASE imports
 import sqlite3
 from werkzeug.utils import secure_filename
 from datetime import datetime
+import string, random
 
 DATABASE = f"{os.getcwd()}\storage\database.db"
 UPLOAD_FOLDER = f"{os.getcwd()}\storage\\"
@@ -41,13 +42,14 @@ def upload():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            identifier = ''.join(random.sample(string.ascii_letters + string.digits, 10)) #generates a unique 10 character string
 
             conn = get_db()
             cur = conn.cursor()
-            cur.execute("INSERT INTO CLIPS (NAME, PATH, UPLOADTS) VALUES (?,?, ?)", (filename.strip(".mp4"), f"{UPLOAD_FOLDER}\\{filename}", datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            cur.execute("INSERT INTO CLIPS (IDENTIFIER, NAME, PATH, UPLOADTS) VALUES (?,?,?,?)", (identifier, filename.replace('.mp4', ''), f"{UPLOAD_FOLDER}\\{filename}", datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             conn.commit()
 
-            return redirect(url_for('download_file', name=filename))
+            return redirect(url_for('download_file', identifier=identifier))
         
     return '''
     <!doctype html>
@@ -59,19 +61,15 @@ def upload():
     </form>
     '''
 
-@app.route('/uploads/<name>')
-def download_file(name):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], name)
+@app.route('/uploads/<identifier>')
+def download_file(identifier):
+    for record in query_db(f"SELECT * FROM CLIPS WHERE IDENTIFIER = '{identifier}'"):
+        return send_from_directory(app.config["UPLOAD_FOLDER"], record[2].replace(UPLOAD_FOLDER, '') + ".mp4")
 
-#EARMARKED
-@app.route("/dbtest")
-def dbtest():
-    return_string = ""
-
-    for record in query_db("SELECT * FROM CLIPS WHERE PATH = path/to/clip.mp4"):
-        return_string = return_string + record[1] + "<br>"
-
-    return return_string
+@app.route("/random")
+def random_clip():
+    for record in query_db("SELECT * FROM CLIPS ORDER BY RANDOM() LIMIT 1"):
+        return redirect(url_for('download_file', identifier=record[1]))
 
 @app.errorhandler(404)
 def not_found(e):
