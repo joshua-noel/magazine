@@ -1,7 +1,5 @@
 import os
-from flask import Flask, request, redirect, url_for #URL imports
-from flask import send_from_directory
-from flask import g #DATABASE imports
+from flask import Flask, request, redirect, url_for, send_from_directory, g, render_template
 import sqlite3
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -51,15 +49,7 @@ def upload():
 
             return redirect(url_for('download_file', identifier=identifier))
         
-    return '''
-    <!doctype html>
-    <title>Upload new File</title>
-    <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
-    '''
+    return render_template('upload.html')
 
 @app.route('/uploads/<identifier>')
 def download_file(identifier):
